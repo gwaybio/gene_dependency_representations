@@ -2,75 +2,80 @@
 
 ## Goal
 
-Our goal is to discover gene process dependencies in cancer.
-Gene process dependencies are groups of genes that cancer cells rely on together, not just single genes in isolation.
-Our vision is to use gene process dependencies as a new category of drug targets.
+Current cancer treatments tend to be toxic and leave patients with lifelong side effects.
+The future of drug development is based on synthetic lethality, where the combination of two genetic events results in cell death.
+The first molecular targeted therapeutic exploiting a synthetic lethal exposed by an inactivated tumor suppressor gene (BRCA1/2) received FDA approval in 2016, a PARP inhibitor.
+Synthetic lethality-based treatments work against a majority of cancer mutations, are easier to match to responding patients, and are less toxic than traditional chemotherapy.
 
-## Publication
-
-This project is described in our preprint, [Curd & Way (2025), "Characterizing the landscape of gene process dependencies in cancer"](https://www.biorxiv.org/content/10.1101/2025.11.14.688518v1).
-
-![Overview of the BioBombe framework.](figure1_overview.jpg)
-
-> **Figure 1. Overview of the BioBombe framework.** (A) Six dimensionality-reduction algorithms (PCA, ICA, NMF, VAE, βVAE, βTCVAE) are each fit to DepMap Achilles CRISPR dependency data across a range of latent dimensions (k = 2–200), producing a weight matrix and a latent dataframe for every model/dimension combination. (B) We evaluate each fit by reconstruction error, gene set coverage, and stability across dimensions. (C) We interpret weight matrices via GSEA against Reactome pathways and CORUM complexes. We correlate latent dataframes with PRISM drug screen sensitivity to generate drug predictions.
-
-Most precision oncology matches a drug to a single mutated gene, which only helps a minority of patients and runs into off-target effects.
-Instead, we look for gene process dependencies: groups of genes within a shared biological process that cancer cells rely on to survive. 
-Using BioBombe, we fit many dimensionality reduction models (PCA, ICA, NMF, and variational autoencoders) across a range of latent dimensions to DepMap CRISPR knockout data, then use gene set enrichment (Reactome, CORUM) to interpret the resulting gene programs and connect them to drug sensitivity.
-
-This multi-model approach recovered known biology, like mitotic regulation and the citric acid cycle, as well as cancer type-specific vulnerabilities, including TP53 and mitochondrial pathway dependencies in glioma.
-The results point to new drug repurposing candidates and an alternative to single-gene targeting for precision oncology.
+**The goal of this project is to discover multivariate gene vulnerability patterns in cancer.**
+We use cancer cell line data from DepMap to find multivariate gene vulnerability patterns that can inform the development of novel cancer treatments.
+We apply an ensemble of dimensionality reduction methods, PCA, ICA, NMF, and several VAE variants, to gene knockout data to discover multivariate gene vulnerabilities across many latent resolutions.
+This ensemble approach is known as BioBombe.
+We compare the resulting representations between pediatric and adult cancers, correlate them with drug response, and test whether they transfer to RNA-seq data that has no matched CRISPR screen.
 
 ## Data
 
-### Access
-
 All data are publicly available.
-
 Source: [Cancer Dependency Map resource](https://depmap.org/portal/download/).
+Drug response data comes from the [PRISM Repurposing screen](https://depmap.org/repurposing/), also hosted on DepMap.
 
-## Repository Structure:
+## Repository structure
 
-This repository is structured as follows:
+This repository is a numbered pipeline, meant to be run in order.
 
 | Order | Module | Description |
 | :---- | :----- | :---------- |
-| [0.data-download](0.data-download/) | Download required files | Download DepMap CRISPR gene dependency/effect data and cell line metadata, and construct a gene filtering dictionary |
-| [1.data-exploration](1.data-exploration/) | Explore and visualize data | Visualize cell line metadata and gene-dependency distributions, split gene effect data into balanced train/test sets, subset genes for downstream modeling, and summarize cell line demographics |
-| [2.train-VAE](2.train-VAE/) | Train dimensionality-reduction models | Optimize hyperparameters and train Beta VAE / Beta TC VAE models on gene dependency data; also apply PCA, ICA, and NMF as alternative dimensionality-reduction baselines |
-| [3.analysis](3.analysis/) | Analyze model outputs | Generate heatmaps of death windows by cell line and gene, run Gene Set Enrichment Analysis on latent gene signatures, run t-tests/ANOVA across demographics, compare models with CKA, and assess reconstruction quality |
-| [4.gene-expression-signatures](4.gene-expression-signatures/) | Optimize and evaluate latent gene signatures | Optimize latent-dimension models (PCA/ICA/NMF/VAE/BetaVAE/BetaTCVAE) via Optuna, run GSEA on the resulting signatures, and visualize GSEA results across latent dimensions |
-| [5.drug-dependency](5.drug-dependency/) | Correlate drug response with latent dimensions | Download PRISM drug repurposing screen data, correlate and t-test drug sensitivity against latent dimensions, and visualize results with pinwheel/spider plots |
-| [6.RNAseq](6.RNAseq/) | Predict latent dimensions from RNAseq | Download and filter DepMap RNAseq expression data, train ElasticNet models to predict latent dimensions from expression, and correlate predictions with drug response |
-| [7.collab-data](7.collab-data/) | Apply pipeline to collaborator data | Download, merge, and model collaborator-provided pediatric tumor RNA-seq data; visualize pinwheel and cell-killing plots |
+| [0.data-download](0.data-download/) | Download data | Download CRISPR gene effect data, cell line metadata, a QC'd gene dictionary, and the pretrained BioBombe ensemble |
+| [1.data-exploration](1.data-exploration/) | Explore and split data | Visualize cell line demographics and split gene effect data into train, test, and validation sets |
+| [2.prototype-VAE-models](2.prototype-VAE-models/) | Train and validate a single Beta-VAE / Beta-TC-VAE | Optimize hyperparameters, train one representative model of each type, then check it with heatmaps, GSEA, and t-tests |
+| [3.run-biobombe](3.run-biobombe/) | Train and validate the full BioBombe ensemble | Sweep PCA, ICA, NMF, VanillaVAE, BetaVAE, and BetaTCVAE across many latent dimensions, run GSEA on each, then check ensemble consistency with CKA and reconstruction quality |
+| [4.drug-dependency](4.drug-dependency/) | Correlate with drug response | Correlate latent dimensions with PRISM drug screen viability data |
+| [5.RNAseq](5.RNAseq/) | Bridge to RNA-seq | Train models that predict each latent dimension from RNA-seq expression, for samples without a CRISPR screen |
+| [6.collab-data](6.collab-data/) | Apply to external data | Apply the RNA-seq bridge to real collaborator samples and compare predicted vulnerabilities to observed cell killing |
+| [7.shiny-app](7.shiny-app/) | Prepare visualization data | Build the PCA projections used by the project's Shiny app |
 
-## Environment Setup
+## Status
 
-Two conda environments are used in this repository:
+The full BioBombe ensemble, `saved_models/` under [3.run-biobombe](3.run-biobombe/), is downloaded rather than trained locally.
+Fetch it with [0.data-download/3.download-saved-biobombe-models-from-figshare.ipynb](0.data-download/3.download-saved-biobombe-models-from-figshare.ipynb).
+A single trained Beta-VAE checkpoint is also available at [2.prototype-VAE-models/results/best_vae_model.pth](2.prototype-VAE-models/results/best_vae_model.pth).
 
-- `environment.yml` (name: `gene_dependency_representations`) — the primary environment for data processing, model training, and Python-based analysis notebooks.
-- `figure_environment.yml` (name: `gene_dependency_figures`) — a lighter environment with an R kernel (`r-irkernel`), used for the R-based figure-generation scripts (e.g. `.r` scripts under `2.train-VAE/scripts/`, `3.analysis/`, `7.collab-data/`).
+## A visual tour
 
-Perform the following steps to set up the environment(s) necessary for processing data in this repository.
+**Cell line cohort.** DepMap cell lines span many cancer types, ages, and pediatric or adult status.
 
-### Step 1: Create Gene Dependency Representations Environment
+![Cell line cohort by cancer type, age, and pediatric status](1.data-exploration/figures/cancer_type_age_and_ped_model_distributions.png)
+
+**Learned latent space.** The trained Beta-VAE embeds cell lines using their gene knockout dependency scores.
+
+![Clustered heatmap of the Beta-VAE latent space](1.data-exploration/figures/heatmap.png)
+
+**Drug response correlation.** Latent dimensions are correlated with PRISM drug screen viability to nominate candidate vulnerabilities.
+
+![Volcano plot of latent dimension to drug correlations](4.drug-dependency/visualize/drug_volcano_plot.png)
+
+## Environment setup
+
+### Step 1: Install mamba
+
+This environment installs PyTorch and JupyterLab, so it's large enough that conda's solver is slow.
+[mamba](https://mamba.readthedocs.io/) is a drop-in, much faster replacement.
 
 ```sh
-# Run this command to create the proper conda environment (conda version 24.5.0)
-
-conda env create --yes --file environment.yml
+conda install -n base -c conda-forge mamba -y
 ```
 
-If you need to run the R-based figure scripts, also create the figures environment:
+### Step 2: Create the environment
 
 ```sh
-conda env create --yes --file figure_environment.yml
+# conda version 24.5.0
+mamba env create --yes --file environment.yml
 ```
 
-### Step 2: Activate Gene Dependency Representations Environment
+Plain `conda env create` also works if you'd rather skip mamba, just slower to resolve.
+
+### Step 3: Activate the environment
 
 ```sh
-# Run this command to activate the conda environment for Gene Dependency Representations
-
 conda activate gene_dependency_representations
 ```
